@@ -1,0 +1,8 @@
+# Models (large files)
+/models/
+*.gguf
+
+# Auth credentials
+.htpasswd
+# SSL certificates (private key)
+/ssl/

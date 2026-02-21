@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-server
+    profiles: ["text"]
+    ports:
+      - "127.0.0.1:${LLAMA_PORT:-8088}:8080"
+    volumes:
+      - ./models:/models:ro
+    command: >
+      -m /models/${LLAMA_MODEL:-Llama-3.2-1B-Instruct-Q4_K_M.gguf}
+      --host 0.0.0.0
+      --port 8080
+      -c 8192
+      --ctx-size 8192
+      -np 4
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+
+  llama-server-vision:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-server-vision
+    profiles: ["vision"]
+    ports:
+      - "127.0.0.1:${LLAMA_PORT:-8088}:8080"
+    volumes:
+      - ./models:/models:ro
+    command: >
+      -m /models/${LLAMA_MODEL:-llava-v1.6-mistral-7b.Q4_K_M.gguf}
+      --mmproj /models/${LLAMA_MMPROJ:-mmproj-llava-v1.6-mistral-7b-f16.gguf}
+      --host 0.0.0.0
+      --port 8080
+      -c 8192
+      -np 1
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+
+  pdf-service:
+    build: ./pdf_service
+    container_name: llama-pdf-service
+    ports:
+      - "127.0.0.1:${PDF_PORT:-8089}:8000"
+    environment:
+      - LLAMA_URL=http://llama-server:8080
+      - LLAMA_URL_VISION=http://llama-server-vision:8080
+      - VISION_MODE=${LLAMA_VISION:-false}
+    depends_on:
+      llama-server:
+        condition: service_started
+        required: false
+      llama-server-vision:
+        condition: service_started
+        required: false
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+  proxy:
+    image: nginx:alpine
+    container_name: llama-proxy
+    ports:
+      - "${PROXY_PORT:-8080}:80"
+      - "${PROXY_PORT_SSL:-8443}:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      pdf-service:
+        condition: service_started
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"

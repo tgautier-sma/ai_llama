@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLama UI - Chat & PDF</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            color: #00d4ff;
+            font-size: 2em;
+        }
+        header p {
+            color: #888;
+            margin-top: 5px;
+        }
+        .model-name {
+            color: #00d4ff;
+            font-weight: bold;
+            background: #252542;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .settings-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 8px;
+        }
+        .settings-bar label {
+            color: #888;
+            font-size: 0.9em;
+            margin: 0;
+        }
+        .settings-bar input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #252542;
+            color: #eee;
+            font-size: 0.9em;
+        }
+        .stats {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #444;
+        }
+        .stats span {
+            margin-right: 15px;
+        }
+        .stats .tokens {
+            color: #00d4ff;
+        }
+        .stats .time {
+            color: #2ed573;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #252542;
+            border: none;
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
+        .tab:hover:not(.active) {
+            background: #333;
+        }
+        .panel {
+            display: none;
+            background: #252542;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .panel.active {
+            display: block;
+        }
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #1a1a2e;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            max-width: 85%;
+        }
+        .message.user {
+            background: #00d4ff;
+            color: #1a1a2e;
+            margin-left: auto;
+        }
+        .message.assistant {
+            background: #333;
+            color: #eee;
+        }
+        .message pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 1em;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+        button {
+            padding: 12px 24px;
+            background: #00d4ff;
+            border: none;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #00b8e6;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .upload-zone {
+            border: 2px dashed #444;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+        .upload-zone input {
+            display: none;
+        }
+        .upload-zone .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        .file-info {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .file-info.visible {
+            display: block;
+        }
+        .file-info .name {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        .result-box {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .result-box.visible {
+            display: block;
+        }
+        .result-box h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        .result-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            margin: 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #333;
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .status.error {
+            display: block;
+            background: #ff4757;
+            color: white;
+        }
+        .status.success {
+            display: block;
+            background: #2ed573;
+            color: white;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+        }
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            resize: vertical;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav style="position: fixed; top: 10px; left: 10px; z-index: 1000; display: flex; gap: 10px;">
+        <a href="/llama-ui/" style="color: #00d4ff; background: #252542; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.9em;">🖥️ LLaMA UI</a>
+        <a href="/docs" style="color: #00d4ff; background: #252542; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.9em;">📚 API Docs</a>
+    </nav>
+    <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+        <span id="model-info" style="color: #888; font-size: 0.85em;">Chargement...</span>
+        <span id="model-name" style="color: #00d4ff; background: #252542; padding: 5px 12px; border-radius: 15px; font-size: 0.85em; font-weight: bold;">Modèle: chargement...</span>
+    </div>
+    <div class="container">
+        <header>
+            <h1>🦙 LLama UI</h1>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showPanel('chat')">💬 Chat</button>
+            <button class="tab" onclick="showPanel('pdf')">📄 Analyse PDF</button>
+        </div>
+
+        <!-- Chat Panel -->
+        <div id="chat-panel" class="panel active">
+            <div class="settings-bar">
+                <label for="max-tokens-chat">Tokens max:</label>
+                <input type="number" id="max-tokens-chat" value="2048" min="64" max="8192" step="64">
+            </div>
+            <div id="chat-container" class="chat-container">
+                <div class="message assistant">
+                    <pre>Bonjour ! Je suis prêt à vous aider. Posez-moi une question.</pre>
+                </div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="chat-input" placeholder="Tapez votre message..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()" id="send-btn">Envoyer</button>
+            </div>
+        </div>
+
+        <!-- PDF Panel -->
+        <div id="pdf-panel" class="panel">
+            <div class="settings-bar">
+                <label for="max-tokens-pdf">Tokens max:</label>
+                <input type="number" id="max-tokens-pdf" value="2048" min="64" max="8192" step="64">
+            </div>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('pdf-input').click()">
+                <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileSelect(event)">
+                <div class="icon">📄</div>
+                <p>Cliquez ou glissez-déposez un fichier PDF</p>
+            </div>
+
+            <div class="file-info" id="file-info">
+                <span class="name" id="file-name"></span>
+                <span id="file-size"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="pdf-question">Question sur le document :</label>
+                <textarea id="pdf-question" placeholder="Ex: Résume ce document en 3 points clés">Résume ce document en français</textarea>
+            </div>
+
+            <button onclick="analyzePdf()" id="analyze-btn">🔍 Analyser le PDF</button>
+
+            <div id="pdf-status" class="status"></div>
+
+            <div class="result-box" id="pdf-result">
+                <h3>📝 Résultat de l'analyse</h3>
+                <div id="pdf-answer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Détection automatique : proxy (port 8080) ou accès direct
+        const isProxy = window.location.port === '8080' || window.location.port === '';
+        const baseUrl = window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '');
+        
+        const LLM_URL = isProxy ? baseUrl + '/llm' : window.location.protocol + '//' + window.location.hostname + ':8088';
+        const PDF_URL = isProxy ? baseUrl + '/pdf' : window.location.protocol + '//' + window.location.hostname + ':8089';
+        
+        let selectedFile = null;
+
+        // Check server status and get model name
+        async function checkStatus() {
+            try {
+                const response = await fetch(LLM_URL + '/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('model-info').textContent = '✅ Serveur connecté';
+                    // Get model info from /v1/models endpoint
+                    try {
+                        const modelsResponse = await fetch(LLM_URL + '/v1/models');
+                        if (modelsResponse.ok) {
+                            const models = await modelsResponse.json();
+                            const modelName = models.data?.[0]?.id || models.models?.[0]?.name || 'Inconnu';
+                            document.getElementById('model-name').textContent = '🤖 ' + modelName.replace('.gguf', '');
+                        }
+                    } catch (e) {
+                        document.getElementById('model-name').textContent = '🤖 Modèle local';
+                    }
+                } else {
+                    document.getElementById('model-info').textContent = '⚠️ Serveur en démarrage...';
+                    document.getElementById('model-name').textContent = '⏳ Chargement...';
+                }
+            } catch (e) {
+                document.getElementById('model-info').textContent = '❌ Serveur non disponible';
+                document.getElementById('model-name').textContent = '❌ Non connecté';
+            }
+        }
+        checkStatus();
+        setInterval(checkStatus, 10000);
+
+        function showPanel(panel) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(panel + '-panel').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const container = document.getElementById('chat-container');
+            const sendBtn = document.getElementById('send-btn');
+
+            // Add user message
+            container.innerHTML += `<div class="message user"><pre>${escapeHtml(message)}</pre></div>`;
+            input.value = '';
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="loading"></span>';
+
+            // Add loading indicator
+            const loadingId = 'loading-' + Date.now();
+            container.innerHTML += `<div class="message assistant" id="${loadingId}"><span class="loading"></span> Réflexion...</div>`;
+            container.scrollTop = container.scrollHeight;
+
+            const startTime = Date.now();
+            try {
+                const maxTokens = parseInt(document.getElementById('max-tokens-chat').value) || 1024;
+                const response = await fetch(LLM_URL + '/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: message }],
+                        max_tokens: maxTokens,
+                        temperature: 0.7
+                    })
+                });
+
+                const data = await response.json();
+                const endTime = Date.now();
+                const responseTime = ((endTime - startTime) / 1000).toFixed(2);
+                const answer = data.choices?.[0]?.message?.content || 'Erreur: pas de réponse';
+                
+                // Statistiques
+                const promptTokens = data.usage?.prompt_tokens || '-';
+                const completionTokens = data.usage?.completion_tokens || '-';
+                const totalTokens = data.usage?.total_tokens || '-';
+                
+                document.getElementById(loadingId).innerHTML = `<pre>${escapeHtml(answer)}</pre>
+                    <div class="stats">
+                        <span class="tokens">📊 Tokens: ${completionTokens} (prompt: ${promptTokens}, total: ${totalTokens})</span>
+                        <span class="time">⏱ ${responseTime}s</span>
+                    </div>`;
+            } catch (e) {
+                document.getElementById(loadingId).innerHTML = `<pre>❌ Erreur: ${e.message}</pre>`;
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Envoyer';
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // PDF Upload
+        const uploadZone = document.getElementById('upload-zone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                selectFile(file);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) selectFile(file);
+        }
+
+        function selectFile(file) {
+            selectedFile = file;
+            document.getElementById('file-info').classList.add('visible');
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = ` (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+        }
+
+        async function analyzePdf() {
+            if (!selectedFile) {
+                showStatus('error', 'Veuillez sélectionner un fichier PDF');
+                return;
+            }
+
+            const question = document.getElementById('pdf-question').value.trim();
+            if (!question) {
+                showStatus('error', 'Veuillez entrer une question');
+                return;
+            }
+
+            const btn = document.getElementById('analyze-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Analyse en cours...';
+            document.getElementById('pdf-result').classList.remove('visible');
+            document.getElementById('pdf-status').className = 'status';
+
+            const maxTokens = parseInt(document.getElementById('max-tokens-pdf').value) || 1024;
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('question', question);
+            formData.append('max_tokens', maxTokens);
+
+            try {
+                const response = await fetch(PDF_URL + '/analyze-pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('pdf-answer').innerHTML = `
+                        <pre>${escapeHtml(data.answer)}</pre>
+                        <div class="stats">
+                            <span class="tokens">📊 Tokens: ${data.completion_tokens} (prompt: ${data.prompt_tokens}, total: ${data.total_tokens})</span>
+                            <span class="time">⏱ ${data.response_time}s</span>
+                        </div>`;
+                    document.getElementById('pdf-result').classList.add('visible');
+                    let modeInfo = '';
+                    if (data.vision_used) modeInfo = ' (Vision IA)';
+                    else if (data.ocr_used) modeInfo = ' (OCR)';
+                    showStatus('success', `✅ Analysé: ${data.pages_extracted} pages${modeInfo}`);
+                } else {
+                    showStatus('error', data.detail || 'Erreur lors de l\'analyse');
+                }
+            } catch (e) {
+                showStatus('error', 'Erreur de connexion: ' + e.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🔍 Analyser le PDF';
+        }
+
+        function showStatus(type, message) {
+            const status = document.getElementById('pdf-status');
+            status.className = 'status ' + type;
+            status.textContent = message;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
