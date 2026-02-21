@@ -99,11 +99,28 @@ curl -k -u admin:changeme https://localhost:5021/llm/health
 
 ## Configuration
 
-### Authentification
+### Authentification (multi-utilisateurs)
 
+Le système supporte plusieurs utilisateurs. Chaque utilisateur a ses propres credentials.
+
+**Mode interactif (menu) :**
 ```bash
-# Configurer/modifier les credentials
 sh setup_auth.sh
+```
+
+**Mode ligne de commande :**
+```bash
+# Lister les utilisateurs
+sh setup_auth.sh list
+
+# Ajouter un utilisateur (mot de passe auto-généré)
+sh setup_auth.sh add nom_utilisateur
+
+# Ajouter avec mot de passe spécifique
+sh setup_auth.sh add nom_utilisateur mon_mot_de_passe
+
+# Supprimer un utilisateur
+sh setup_auth.sh delete nom_utilisateur
 ```
 
 ### Certificats SSL
